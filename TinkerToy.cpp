@@ -3,6 +3,7 @@
 
 #include "Particle.h"
 #include "SpringForce.h"
+#include "GravityForce.h"
 #include "RodConstraint.h"
 #include "CircularWireConstraint.h"
 #include "imageio.h"
@@ -39,6 +40,7 @@ static int hmx, hmy;
 static SpringForce * delete_this_dummy_spring = NULL;
 static RodConstraint * delete_this_dummy_rod = NULL;
 static CircularWireConstraint * delete_this_dummy_wire = NULL;
+static GravityForce *gravity = NULL;
 
 
 /*
@@ -61,6 +63,11 @@ static void free_data ( void )
 	if (delete_this_dummy_wire) {
 		delete delete_this_dummy_wire;
 		delete_this_dummy_wire = NULL;
+	}
+	if (gravity)
+	{
+		delete gravity;
+		gravity = NULL;
 	}
 }
 
@@ -91,6 +98,8 @@ static void init_system(void)
 	delete_this_dummy_spring = new SpringForce(pVector[0], pVector[1], dist, 1.0, 1.0);
 	delete_this_dummy_rod = new RodConstraint(pVector[1], pVector[2], dist);
 	delete_this_dummy_wire = new CircularWireConstraint(pVector[0], center, dist);
+	gravity = new GravityForce(Vec2f(0.0, 0.0),
+		Vec2f(0.0, -1.0) * 0.0981);
 }
 
 /*
@@ -150,6 +159,8 @@ static void draw_forces ( void )
 	// change this to iteration over full set
 	if (delete_this_dummy_spring)
 		delete_this_dummy_spring->draw();
+	if (gravity)
+		gravity->draw();
 }
 
 static void draw_constraints ( void )
