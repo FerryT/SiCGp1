@@ -11,6 +11,8 @@ class Force : public Entity
 public:
 	Force() {};
 	virtual ~Force() {};
+	
+	virtual void act() = 0;
 };
 
 //------------------------------------------------------------------------------

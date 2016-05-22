@@ -54,8 +54,8 @@ int main(int argc, char *argv[])
 	
 	atexit(exit_func);
 	
-	init_system();
 	System::Init();
+	init_system();
 	
 	init_glut();
 	glutMainLoop();
@@ -90,7 +90,7 @@ void init_system()
 	System::Create<SpringForce>(p1, p2, dist, 1.0, 1.0);
 	System::Create<RodConstraint>(p2, p3, dist);
 	System::Create<CircularWireConstraint>(p1, center, dist);
-	System::Create<GravityForce>(center, perp(offset) * 0.981);
+	System::Create<GravityForce>(center, perp(offset) * 0.981, System::GetParticles());
 }
 
 //------------------------------------------------------------------------------

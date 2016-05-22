@@ -28,6 +28,8 @@ template <typename T, typename... Args> inline T *Create(Args... args)
 	{ T *ptr = new T(args...); Register(ptr); return ptr; }
 void Clear();
 
+const Particles *GetParticles();
+
 //------------------------------------------------------------------------------
 
 } /* namespace System */

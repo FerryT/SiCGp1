@@ -15,4 +15,14 @@ void SpringForce::draw()
 	glEnd();
 }
 
+void SpringForce::act()
+{
+	Vec2 l = p1->pos - p2->pos,
+		dl = p1->vel - p2->vel;
+	double nl = norm(l);
+	Vec2 f = (ks * (nl - dist) + kd * ((l * dl) / nl)) * (l / nl);
+	p1->force += f;
+	p2->force -= f;
+}
+
 //------------------------------------------------------------------------------
