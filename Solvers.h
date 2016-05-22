@@ -1,23 +1,21 @@
 //------------------------------------------------------------------------------
-//  A force that acts constantly uniformely in a single direction
+//  Solvers used for simulation steps
 //------------------------------------------------------------------------------
 
 #pragma once
 
-#include "Force.h"
 #include "Particle.h"
+
+typedef void (*Solver)(Particle &, float dt);
+
+namespace Solvers {
 
 //------------------------------------------------------------------------------
 
-class GravityForce : public Force
-{
-public:
-	GravityForce(const Vec2f &origin, const Vec2f &velocity)
-		: force(origin) { force.vel = velocity; }
-	virtual void draw();
-	
-private:
-	Particle force;
-};
+void Dummy(Particle &, float dt);
+
+//------------------------------------------------------------------------------
+
+} /* Solvers */
 
 //------------------------------------------------------------------------------

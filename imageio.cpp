@@ -15,7 +15,7 @@ unsigned char *_loadImgError(int *width, int *height)
 }
 
 // Returns true iff the string s ends with postfix
-bool _endsWith(char *s, char *postfix)
+bool _endsWith(const char *s, const char *postfix)
 {
 	int sLen = strlen(s);
 	int postfixLen = strlen(postfix);
@@ -28,7 +28,7 @@ bool _endsWith(char *s, char *postfix)
 
 // ***** png related internal functions ***** //
 
-unsigned char *_loadImageRGBApng(char *fileName, int *width, int *height)
+unsigned char *_loadImageRGBApng(const char *fileName, int *width, int *height)
 {
 	// open the file
 	FILE *fp = fopen(fileName, "rb");
@@ -128,7 +128,7 @@ unsigned char *_loadImageRGBApng(char *fileName, int *width, int *height)
 	return buffer;
 }
 
-bool _saveImageRGBApng(char *fileName, unsigned char *buffer, int width, int height)
+bool _saveImageRGBApng(const char *fileName, unsigned char *buffer, int width, int height)
 {
 	// open the file
 	FILE *fp = fopen(fileName, "wb");
@@ -190,7 +190,7 @@ bool _saveImageRGBApng(char *fileName, unsigned char *buffer, int width, int hei
 // The memory associated with the buffer can be deallocated with free().
 // If there was an error reading file, then 0 is returned, and
 // width = height = -1.
-unsigned char *loadImageRGBA(char *fileName, int *width, int *height)
+unsigned char *loadImageRGBA(const char *fileName, int *width, int *height)
 {
 	if (_endsWith(fileName, ".png"))
 		return _loadImageRGBApng(fileName, width, height);
@@ -201,7 +201,7 @@ unsigned char *loadImageRGBA(char *fileName, int *width, int *height)
 // Saves image given by buffer with specicified with and height
 // to the given file name, returns true on success, false otherwise.
 // The image format is RGBA.
-bool saveImageRGBA(char *fileName, unsigned char *buffer, int width, int height)
+bool saveImageRGBA(const char *fileName, unsigned char *buffer, int width, int height)
 {
 	if (_endsWith(fileName, ".png"))
 		return _saveImageRGBApng(fileName, buffer, width, height);

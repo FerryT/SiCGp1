@@ -5,6 +5,8 @@
 
 #define PI 3.1415926535897932384626433832795
 
+//------------------------------------------------------------------------------
+
 static void draw_circle(const Vec2f &vect, float radius)
 {
 	glBegin(GL_LINE_LOOP);
@@ -17,7 +19,11 @@ static void draw_circle(const Vec2f &vect, float radius)
 	glEnd();
 }
 
+//------------------------------------------------------------------------------
+
 void CircularWireConstraint::draw()
 {
 	draw_circle(center, radius);
 }
+
+//------------------------------------------------------------------------------

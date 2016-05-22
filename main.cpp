@@ -6,59 +6,40 @@
 #include <stdio.h>
 #include <GL/glut.h>
 
-#include "Particle.h"
-#include "SpringForce.h"
-#include "GravityForce.h"
-#include "RodConstraint.h"
-#include "CircularWireConstraint.h"
+#include "System.h"
+
 #include "imageio.h"
 
-// macros
-
-// external definitions (from solver)
-extern void simulation_step(std::vector<Particle*> pVector, float dt);
+#define WINDOW_TITLE "Tinkertoys!"
 
 // global variables
-static int N;
-static float dt, d;
-static int dsim;
-static int dump_frames;
-static int frame_number;
+int N = 64;
+float dt = 0.1;
+float d = 5.0;
 
-// static Particle *pList;
-static std::vector<Particle*> pVector;
+bool simulate = false;
+bool dump_frames = false;
+int frame_number = 0;
 
-static int win_id;
-static int win_x, win_y;
-static int mouse_down[3];
-static int mouse_release[3];
-static int mouse_shiftclick[3];
-static int omx, omy, mx, my;
-static int hmx, hmy;
+unsigned char *frame_buffer = NULL;
+size_t frame_buffer_size = 0;
 
-static SpringForce * delete_this_dummy_spring = NULL;
-static RodConstraint * delete_this_dummy_rod = NULL;
-static CircularWireConstraint * delete_this_dummy_wire = NULL;
-static GravityForce *gravity = NULL;
+#define FRAME_INTERVAL 4
 
-/*----------------------------------------------------------------------
-  main --- main routine
-----------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//  main --- main routine
+//------------------------------------------------------------------------------
 
-static void init_system(void);
-static void open_glut_window(void);
+void init_system();
+void init_glut();
+void exit_func();
+
 int main(int argc, char *argv[])
 {
 	glutInit(&argc, argv);
 	
 	if (argc < 4)
-	{
-		N = 64;
-		dt = 0.1f;
-		d = 5.f;
-		fprintf(stderr, "Using defaults : N=%d dt=%g d=%g\n",
-		        N, dt, d);
-	}
+		fprintf(stderr, "Using defaults : N=%d dt=%g d=%g\n", N, dt, d);
 	else
 	{
 		N = atoi(argv[1]);
@@ -69,299 +50,84 @@ int main(int argc, char *argv[])
 	printf("\n\nHow to use this application:\n\n");
 	printf("\t Toggle construction/simulation display with the spacebar key\n");
 	printf("\t Dump frames by pressing the 'd' key\n");
-	printf("\t Quit by pressing the 'q' key\n");
-	dsim = 0;
-	dump_frames = 0;
-	frame_number = 0;
+	printf("\t Quit by pressing the 'q' or 'esc' key\n");
+	
+	atexit(exit_func);
+	
 	init_system();
-	win_x = 512;
-	win_y = 512;
-	open_glut_window();
+	System::Init();
+	
+	init_glut();
 	glutMainLoop();
+	
 	exit(0);
 }
 
-
-/*----------------------------------------------------------------------
-  free/clear/allocate simulation data
-----------------------------------------------------------------------*/
-
-static void free_data(void)
+void exit_func()
 {
-	pVector.clear();
-	
-	if (delete_this_dummy_rod)
+	if (frame_buffer)
 	{
-		delete delete_this_dummy_rod;
-		delete_this_dummy_rod = NULL;
+		frame_buffer = NULL;
+		frame_buffer_size = 0;
 	}
-	
-	if (delete_this_dummy_spring)
-	{
-		delete delete_this_dummy_spring;
-		delete_this_dummy_spring = NULL;
-	}
-	
-	if (delete_this_dummy_wire)
-	{
-		delete delete_this_dummy_wire;
-		delete_this_dummy_wire = NULL;
-	}
-	
-	if (gravity)
-	{
-		delete gravity;
-		gravity = NULL;
-	}
+	System::Exit();
 }
 
-static void clear_data(void)
-{
-	int ii, size = pVector.size();
-	
-	for (ii = 0; ii < size; ii++)
-	{
-		pVector[ii]->reset();
-	}
-}
+//------------------------------------------------------------------------------
+//  free/clear/allocate simulation data
+//------------------------------------------------------------------------------
 
-static void init_system(void)
+void init_system()
 {
 	const double dist = 0.2;
 	const Vec2f center(0.0, 0.0);
 	const Vec2f offset(dist, 0.0);
-	// Create three particles, attach them to each other, then add a
-	// circular wire constraint to the first.
-	pVector.push_back(new Particle(center + offset));
-	pVector.push_back(new Particle(center + offset + offset));
-	pVector.push_back(new Particle(center + offset + offset + offset));
-	// You shoud replace these with a vector generalized forces and one of
-	// constraints...
-	delete_this_dummy_spring = new SpringForce(pVector[0], pVector[1], dist, 1.0, 1.0);
-	delete_this_dummy_rod = new RodConstraint(pVector[1], pVector[2], dist);
-	delete_this_dummy_wire = new CircularWireConstraint(pVector[0], center, dist);
-	gravity = new GravityForce(Vec2f(0.0, 0.0),
-	                           Vec2f(0.0, -1.0) * 0.0981);
+	
+	Particle *p1 = System::Create<Particle>(center + offset * 1);
+	Particle *p2 = System::Create<Particle>(center + offset * 2);
+	Particle *p3 = System::Create<Particle>(center + offset * 3);
+	
+	System::Create<SpringForce>(p1, p2, dist, 1.0, 1.0);
+	System::Create<RodConstraint>(p2, p3, dist);
+	System::Create<CircularWireConstraint>(p1, center, dist);
+	System::Create<GravityForce>(center, perp(offset) * 0.981);
 }
 
-/*----------------------------------------------------------------------
-  OpenGL specific drawing routines
-----------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//  init GLUT --- open a glut compatible window and set callbacks
+//------------------------------------------------------------------------------
 
-static void pre_display(void)
+static void key_func(unsigned char key, int x, int y);
+static void mouse_func(int button, int state, int x, int y);
+static void motion_func(int x, int y);
+static void reshape_func(int width, int height);
+static void idle_func();
+static void display_func();
+
+void pre_display();
+void post_display();
+
+void get_from_UI();
+void remap_GUI();
+
+struct
 {
-	glViewport(0, 0, win_x, win_y);
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	gluOrtho2D(-1.0, 1.0, -1.0, 1.0);
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
-}
+	int id;
+	int width, height;
+} win = {0, 512, 512};
 
-static void post_display(void)
-{
-	// Write frames if necessary.
-	if (dump_frames)
-	{
-		const int FRAME_INTERVAL = 4;
-		
-		if ((frame_number % FRAME_INTERVAL) == 0)
-		{
-			const unsigned int w = glutGet(GLUT_WINDOW_WIDTH);
-			const unsigned int h = glutGet(GLUT_WINDOW_HEIGHT);
-			unsigned char * buffer = (unsigned char *) malloc(w * h * 4 * sizeof(unsigned char));
-			
-			if (!buffer)
-				exit(-1);
-				
-			// glRasterPos2i(0, 0);
-			glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
-			static char filename[80];
-			sprintf(filename, "snapshots/img%.5i.png", frame_number / FRAME_INTERVAL);
-			printf("Dumped %s.\n", filename);
-			saveImageRGBA(filename, buffer, w, h);
-			free(buffer);
-		}
-	}
-	
-	frame_number++;
-	glutSwapBuffers();
-}
+int mouse_down[3];
+int mouse_release[3];
+int mouse_shiftclick[3];
+int omx, omy, mx, my;
+int hmx, hmy;
 
-static void draw_particles(void)
-{
-	int size = pVector.size();
-	
-	for (int ii = 0; ii < size; ii++)
-	{
-		pVector[ii]->draw();
-	}
-}
-
-static void draw_forces(void)
-{
-	// change this to iteration over full set
-	if (delete_this_dummy_spring)
-		delete_this_dummy_spring->draw();
-		
-	if (gravity)
-		gravity->draw();
-}
-
-static void draw_constraints(void)
-{
-	// change this to iteration over full set
-	if (delete_this_dummy_rod)
-		delete_this_dummy_rod->draw();
-		
-	if (delete_this_dummy_wire)
-		delete_this_dummy_wire->draw();
-}
-
-/*----------------------------------------------------------------------
-  relates mouse movements to tinker toy construction
-----------------------------------------------------------------------*/
-
-static void get_from_UI()
-{
-	int i, j;
-	// int size, flag;
-	int hi, hj;
-	
-	// float x, y;
-	if (!mouse_down[0] && !mouse_down[2] && !mouse_release[0]
-	        && !mouse_shiftclick[0] && !mouse_shiftclick[2]) return;
-	        
-	i = (int)((mx / (float)win_x) * N);
-	j = (int)(((win_y - my) / (float)win_y) * N);
-	
-	if (i < 1 || i > N || j < 1 || j > N) return;
-	
-	if (mouse_down[0])
-	{
-	}
-	
-	if (mouse_down[2])
-	{
-	}
-	
-	hi = (int)((hmx / (float)win_x) * N);
-	hj = (int)(((win_y - hmy) / (float)win_y) * N);
-	
-	if (mouse_release[0])
-	{
-	}
-	
-	omx = mx;
-	omy = my;
-}
-
-static void remap_GUI()
-{
-	int ii, size = pVector.size();
-	
-	for (ii = 0; ii < size; ii++)
-	{
-		pVector[ii]->pos[0] = pVector[ii]->ini[0];
-		pVector[ii]->pos[1] = pVector[ii]->ini[1];
-	}
-}
-
-/*----------------------------------------------------------------------
-  GLUT callback routines
-----------------------------------------------------------------------*/
-
-static void key_func(unsigned char key, int x, int y)
-{
-	switch (key)
-	{
-	case 'c':
-	case 'C':
-		clear_data();
-		break;
-		
-	case 'd':
-	case 'D':
-		dump_frames = !dump_frames;
-		break;
-		
-	case 'q':
-	case 'Q':
-		free_data();
-		exit(0);
-		break;
-		
-	case ' ':
-		dsim = !dsim;
-		break;
-	}
-}
-
-static void mouse_func(int button, int state, int x, int y)
-{
-	omx = mx = x;
-	omx = my = y;
-	
-	if (!mouse_down[0])
-	{
-		hmx = x;
-		hmy = y;
-	}
-	
-	if (mouse_down[button]) mouse_release[button] = state == GLUT_UP;
-	
-	if (mouse_down[button]) mouse_shiftclick[button] = glutGetModifiers() == GLUT_ACTIVE_SHIFT;
-	
-	mouse_down[button] = state == GLUT_DOWN;
-}
-
-static void motion_func(int x, int y)
-{
-	mx = x;
-	my = y;
-}
-
-static void reshape_func(int width, int height)
-{
-	glutSetWindow(win_id);
-	glutReshapeWindow(width, height);
-	win_x = width;
-	win_y = height;
-}
-
-static void idle_func(void)
-{
-	if (dsim) simulation_step(pVector, dt);
-	else
-	{
-		get_from_UI();
-		remap_GUI();
-	}
-	
-	glutSetWindow(win_id);
-	glutPostRedisplay();
-}
-
-static void display_func(void)
-{
-	pre_display();
-	draw_forces();
-	draw_constraints();
-	draw_particles();
-	post_display();
-}
-
-
-/*----------------------------------------------------------------------
-  open_glut_window --- open a glut compatible window and set callbacks
-----------------------------------------------------------------------*/
-
-static void open_glut_window(void)
+void init_glut()
 {
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE);
 	glutInitWindowPosition(0, 0);
-	glutInitWindowSize(win_x, win_y);
-	win_id = glutCreateWindow("Tinkertoys!");
+	glutInitWindowSize(win.width, win.height);
+	win.id = glutCreateWindow(WINDOW_TITLE);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glutSwapBuffers();
@@ -378,4 +144,188 @@ static void open_glut_window(void)
 	glutDisplayFunc(display_func);
 }
 
+//------------------------------------------------------------------------------
+// GLUT callback routines
+//------------------------------------------------------------------------------
 
+static void key_func(unsigned char key, int x, int y)
+{
+	switch (key)
+	{
+		case 'c':
+		case 'C':
+			System::Reset();
+			break;
+		
+		case 'd':
+		case 'D':
+			dump_frames = !dump_frames;
+			printf("%s dumping frames.\n", dump_frames ? "Started" : "Stopped");
+			break;
+			
+		case 'q':
+		case 'Q':
+		case '\e':
+			exit(0);
+			break;
+			
+		case ' ':
+			simulate = !simulate;
+			break;
+	}
+}
+
+static void mouse_func(int button, int state, int x, int y)
+{
+	omx = mx = x;
+	omx = my = y;
+	
+	if (!mouse_down[0])
+	{
+		hmx = x;
+		hmy = y;
+	}
+	
+	if (mouse_down[button])
+	{
+		mouse_release[button] = state == GLUT_UP;
+		mouse_shiftclick[button] = glutGetModifiers() == GLUT_ACTIVE_SHIFT;
+	}
+	mouse_down[button] = state == GLUT_DOWN;
+}
+
+static void motion_func(int x, int y)
+{
+	mx = x;
+	my = y;
+}
+
+static void reshape_func(int width, int height)
+{
+	glutSetWindow(win.id);
+	glutReshapeWindow(width, height);
+	win.width = width;
+	win.height = height;
+}
+
+static void idle_func()
+{
+	if (simulate)
+		System::Simulate(Solvers::Dummy, dt);
+	else
+	{
+		get_from_UI();
+		remap_GUI();
+	}
+	
+	glutSetWindow(win.id);
+	glutPostRedisplay();
+}
+
+static void display_func()
+{
+	pre_display();
+	System::Draw();
+	post_display();
+}
+
+//------------------------------------------------------------------------------
+//  OpenGL specific drawing routines
+//------------------------------------------------------------------------------
+
+void pre_display()
+{
+	float ratio = (float) win.width / (float) win.height;
+	glViewport(0, 0, win.width, win.height);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	gluOrtho2D(-ratio, ratio, -1.0, 1.0);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+}
+
+void post_display()
+{
+	if (dump_frames && !(frame_number % FRAME_INTERVAL))
+	{
+		const unsigned int w = win.width;
+		const unsigned int h = win.height;
+		const size_t size = w * h * 4;
+		
+		if (frame_buffer_size != size)
+		{
+			if (frame_buffer)
+				delete [] frame_buffer;
+			frame_buffer = new unsigned char[size];
+			frame_buffer_size = size;
+		}
+		
+		if (!frame_buffer)
+		{
+			dump_frames = false;
+			perror("Unable to allocate memory for frame dump.");
+		}
+		
+		glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, frame_buffer);
+		static char filename[80];
+		sprintf(filename, "snapshots/img%.5i.png", frame_number / FRAME_INTERVAL);
+		//printf("Dumped %s.\n", filename);
+		saveImageRGBA(filename, frame_buffer, w, h);
+	}
+	
+	frame_number++;
+	glutSwapBuffers();
+}
+
+//------------------------------------------------------------------------------
+//  relates mouse movements to tinker toy construction
+//------------------------------------------------------------------------------
+
+// Todo: Rewrite this
+
+void get_from_UI()
+{
+	int i, j;
+	// int size, flag;
+	int hi, hj;
+	
+	// float x, y;
+	if (!mouse_down[0] && !mouse_down[2] && !mouse_release[0]
+	        && !mouse_shiftclick[0] && !mouse_shiftclick[2]) return;
+	        
+	i = (int)((mx / (float)win.width) * N);
+	j = (int)(((win.height - my) / (float)win.height) * N);
+	
+	if (i < 1 || i > N || j < 1 || j > N) return;
+	
+	if (mouse_down[0])
+	{
+	}
+	
+	if (mouse_down[2])
+	{
+	}
+	
+	hi = (int)((hmx / (float)win.width) * N);
+	hj = (int)(((win.height - hmy) / (float)win.height) * N);
+	
+	if (mouse_release[0])
+	{
+	}
+	
+	omx = mx;
+	omy = my;
+}
+
+void remap_GUI()
+{
+	/*int ii, size = pVector.size();
+	
+	for (ii = 0; ii < size; ii++)
+	{
+		pVector[ii]->pos[0] = pVector[ii]->ini[0];
+		pVector[ii]->pos[1] = pVector[ii]->ini[1];
+	}*/
+}
+
+//------------------------------------------------------------------------------

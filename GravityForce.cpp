@@ -3,6 +3,8 @@
 
 #include "GravityForce.h"
 
+//------------------------------------------------------------------------------
+
 void GravityForce::draw()
 {
 	force.pos = force.ini + force.vel;
@@ -28,3 +30,5 @@ void GravityForce::draw()
 	glVertex2f(force.pos[0] - arrow[0], force.pos[1] - arrow[1]);
 	glEnd();
 }
+
+//------------------------------------------------------------------------------

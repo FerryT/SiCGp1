@@ -3,6 +3,8 @@
 
 #include "RodConstraint.h"
 
+//------------------------------------------------------------------------------
+
 void RodConstraint::draw()
 {
 	glBegin(GL_LINES);
@@ -12,3 +14,5 @@ void RodConstraint::draw()
 	glVertex2f(p2->pos[0], p2->pos[1]);
 	glEnd();
 }
+
+//------------------------------------------------------------------------------

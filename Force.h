@@ -1,22 +1,16 @@
 //------------------------------------------------------------------------------
-//  Particle definition
+// A base class for all forces acting on particles
 //------------------------------------------------------------------------------
 
 #pragma once
 
-#include <gfx/vec2.h>
-
 #include "Entity.h"
 
-class Particle : public Entity
+class Force : public Entity
 {
 public:
-	Particle(const Vec2f &P) : ini(P), pos(P), vel(Vec2f(0.0, 0.0)) {}
-	
-	virtual void reset();
-	virtual void draw();
-	
-	Vec2f ini, pos, vel;
+	Force() {};
+	virtual ~Force() {};
 };
 
 //------------------------------------------------------------------------------

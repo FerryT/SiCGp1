@@ -11,7 +11,7 @@ OBJ = $(patsubst %.cpp, %.o, $(SRC))
 LIBS =  -static-libgcc -static-libstdc++ -L"deps/png" -L"deps/freeglut/lib" -lfreeglut -lfreeglut_static -lopengl32 -lpng -lglu32  -s 
 INCS =  -I"deps/png"  -I"deps/freeglut/include"  -I"deps/libgfx/include" 
 BIN  = Project1.exe
-CXXFLAGS = $(INCS) -DHAVE_CONFIG_H -fexpensive-optimizations -O3
+CXXFLAGS = $(INCS) -DHAVE_CONFIG_H -fexpensive-optimizations -O3 -std=c++11
 RM = rm -f
 
 .PHONY: all clean
