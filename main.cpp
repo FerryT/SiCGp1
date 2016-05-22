@@ -211,7 +211,7 @@ static void reshape_func(int width, int height)
 static void idle_func()
 {
 	if (simulate)
-		System::Simulate(Solvers::Dummy, dt);
+		System::Simulate(Solvers::Euler, dt);
 	else
 	{
 		get_from_UI();
